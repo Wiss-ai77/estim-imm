@@ -40,7 +40,9 @@ echo "Caddy $(caddy version | awk '{print $1}') prêt."
 
 etape "1/4  Domaine et accès"
 IP_VPS="$(curl -4 -s --max-time 5 https://api.ipify.org || hostname -I | awk '{print $1}')"
-read -rp "Nom de domaine du site (ex. estim.fpt-pratique.fr) — laisser vide pour utiliser l'IP $IP_VPS : " DOMAINE
+read -rp "Nom de domaine du site, par exemple estim.fpt-pratique.fr (laisser vide pour utiliser l'IP $IP_VPS) : " DOMAINE
+# Nettoyage : on ne garde que lettres, chiffres, points et tirets (évite une parenthèse ou un espace copié par erreur)
+DOMAINE="$(printf '%s' "$DOMAINE" | tr 'A-Z' 'a-z' | sed -E 's#^https?://##; s#/.*$##; s/[^a-z0-9.-]//g')"
 if [ -z "$DOMAINE" ]; then
   DOMAINE="$IP_VPS"; TLS_LINE="\ttls internal"
   echo "Accès par IP : https://$IP_VPS avec un certificat auto-signé (avertissement du navigateur à accepter une fois)."

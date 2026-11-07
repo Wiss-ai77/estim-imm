@@ -2,7 +2,7 @@
 (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
-  const { geocode, reverse, fetchCommune, fetchFallback, analyse, dpeCoef, fmtEur } = window.DVF;
+  const { geocode, reverse, fetchCommune, fetchPrebuilt, fetchFallback, analyse, dpeCoef, fmtEur } = window.DVF;
 
   /* ---------- Carte ---------- */
   const map = L.map("map", { scrollWheelZoom: false }).setView([48.80, 2.55], 10);
@@ -94,16 +94,25 @@
   $("btn-estimate").addEventListener("click", runEstimate);
   ["type", "dpe", "surface", "radius", "period", "region"].forEach(id => $(id).addEventListener("change", () => { if (!$("results").hidden) runEstimate(); }));
 
+  const prebuiltCache = new Map();
   async function loadSales(pos, radius) {
+    // 1. Données pré-calculées du site (rapide, fiable)
+    try {
+      if (!prebuiltCache.has(pos.citycode)) prebuiltCache.set(pos.citycode, await fetchPrebuilt(pos.citycode));
+      const d = prebuiltCache.get(pos.citycode);
+      return { sales: d.sales, source: "prebuilt", generated: d.generated };
+    } catch (err) {
+      if (err.code !== "NODATA") console.warn(err);
+    }
+    // 2. CSV DVF en direct (fonctionne seulement si le serveur autorise le navigateur)
     try {
       return { sales: await fetchCommune(pos.citycode, (y) => setStatus(`Chargement des ventes ${y}…`)), source: "csv" };
     } catch (err) {
-      if (err.code === "CORS") {
-        setStatus("Fichiers DVF non joignables depuis le navigateur, passage par l'API de secours…", "warn");
-        return { sales: await fetchFallback(pos.lat, pos.lon, Math.min(radius, 5000)), source: "fallback" };
-      }
-      throw err;
+      if (err.code !== "CORS") throw err;
     }
+    // 3. API de secours
+    setStatus("Commune hors des données pré-calculées, essai via l'API de secours…", "warn");
+    return { sales: await fetchFallback(pos.lat, pos.lon, Math.min(radius, 5000)), source: "fallback" };
   }
 
   async function runEstimate() {
@@ -112,10 +121,11 @@
     const surface = +$("surface").value || 0, dpe = $("dpe").value, region = $("region").value;
     $("btn-estimate").disabled = true;
     try {
-      const { sales, source } = await loadSales(pos, radius);
+      const { sales, source, generated } = await loadSales(pos, radius);
       const a = analyse(sales, { lat: pos.lat, lon: pos.lon, radius, type, months });
       renderResults(a, { type, surface, dpe, region, radius, source, pos });
-      setStatus(source === "fallback" ? "Données issues de l'API de secours (couverture possiblement partielle)." : `Données DVF chargées pour ${pos.city}.`);
+      setStatus(source === "fallback" ? "Données issues de l'API de secours (couverture possiblement partielle)."
+        : `Ventes DVF de ${pos.city} : ${sales.length} logements${generated ? ", données préparées le " + fmtDate(generated) : ""}.`);
     } catch (err) {
       console.error(err);
       setStatus("Impossible de charger les ventes : " + err.message, "err");

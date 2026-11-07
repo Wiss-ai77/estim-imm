@@ -185,7 +185,7 @@
   <section id="methode" class="card">
     <h2>Méthode et limites</h2>
     <ul class="method">
-      <li><strong>Source des prix :</strong> « Demandes de valeurs foncières géolocalisées » (DGFiP / Etalab), c'est-à-dire toutes les ventes enregistrées chez les notaires, publiées deux fois par an avec environ 6 mois de retard. Le site télécharge directement les fichiers de la commune concernée depuis <code>files.data.gouv.fr</code> ; rien ne transite par un serveur tiers.</li>
+      <li><strong>Source des prix :</strong> « Demandes de valeurs foncières géolocalisées » (DGFiP / Etalab), c'est-à-dire toutes les ventes enregistrées chez les notaires, publiées deux fois par an avec environ 6 mois de retard. Les fichiers sont téléchargés et nettoyés par un script automatique (GitHub Action, chaque mois) puis servis par le site lui-même ; rien ne transite par un serveur tiers. Couverture actuelle : Île-de-France.</li>
       <li><strong>Nettoyage :</strong> ventes classiques uniquement (pas de VEFA, échanges, adjudications), un seul logement par transaction (les ventes en bloc, les mélanges maison + appartement et les locaux commerciaux sont exclus), prix au m² entre 500 et 25 000 €. La surface utilisée est la surface réelle bâtie.</li>
       <li><strong>Statistique :</strong> la médiane (moins sensible aux extrêmes que la moyenne) sur les ventes situées dans le rayon choisi, et la fourchette P25–P75. Moins de 8 ventes : le résultat est signalé comme fragile.</li>
       <li><strong>DPE :</strong> la médiane DVF mélange toutes les classes énergétiques ; on la considère comme représentative d'un bien de classe D (le cas le plus fréquent dans l'ancien) et on applique les écarts mesurés par les Notaires de France sur les transactions 2024 (étude « valeur verte », déc. 2025). En Île-de-France les écarts sont plus faibles qu'en province : environ +4 % pour un A-B et −5 % pour un F-G en petite couronne sur les appartements ; jusqu'à +17 % (A) et −25 % (G) sur les maisons au niveau national.</li>
@@ -199,7 +199,7 @@
 <footer class="site-footer">
   <div class="wrap">
     <span>Estim'Immo — outil personnel, données publiques sous Licence Ouverte 2.0.</span>
-    <a id="gh-link" href="https://github.com/Wiss-ai77" target="_blank" rel="noopener">Code source</a>
+    <a id="gh-link" href="https://github.com/Wiss-ai77/estim-imm" target="_blank" rel="noopener">Code source</a>
   </div>
 </footer>
 

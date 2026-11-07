@@ -1,0 +1,49 @@
+name: Mise à jour des données DVF
+
+on:
+  workflow_dispatch:
+    inputs:
+      departements:
+        description: "Départements à traiter (séparés par des espaces). Vide = Île-de-France."
+        required: false
+        default: ""
+  schedule:
+    # Le 1er de chaque mois à 04:17 UTC (DVF est publié en avril et octobre)
+    - cron: "17 4 1 * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/build-data.mjs"
+      - "js/dvf.js"
+      - ".github/workflows/update-data.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Tests unitaires
+        run: node test/test_dvf.js
+      - name: Télécharger et nettoyer DVF
+        run: node scripts/build-data.mjs ${{ inputs.departements }}
+      - name: Commit des données
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          if git diff --cached --quiet; then
+            echo "Pas de changement."
+          else
+            git commit -m "data: mise à jour DVF $(date -u +%Y-%m-%d)"
+            git push
+          fi

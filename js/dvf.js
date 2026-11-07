@@ -89,6 +89,23 @@
     return p;
   }
 
+  /* Données pré-calculées par le script scripts/build-data.mjs (GitHub Action), servies depuis le site lui-même */
+  const DATA_BASE = (typeof document !== "undefined" && document.currentScript)
+    ? new URL("../data/", document.currentScript.src).href
+    : "data/";
+  async function fetchPrebuilt(citycode) {
+    const r = await fetch(`${DATA_BASE}${citycode}.json`, { cache: "no-cache" });
+    if (r.status === 404) throw Object.assign(new Error("Commune absente des données pré-calculées"), { code: "NODATA" });
+    if (!r.ok) throw new Error("Lecture des données impossible (" + r.status + ")");
+    const j = await r.json();
+    const sales = j.sales.map((a, i) => ({
+      id: j.code + "-" + i, date: a[0], year: +String(a[0]).slice(0, 4), price: a[1], surface: a[2], ppm2: a[3],
+      type: a[4] === "M" ? "Maison" : "Appartement", lat: a[5], lon: a[6], terrain: a[7], pieces: a[8], address: a[9], multi: !!a[10],
+      city: j.name
+    }));
+    return { sales, generated: j.generated, name: j.name };
+  }
+
   /* Secours : API communautaire cquest (rayon autour d'un point) */
   async function fetchFallback(lat, lon, dist) {
     const url = `${DVF_FALLBACK}?lat=${lat}&lon=${lon}&dist=${Math.min(dist, 5000)}`;
@@ -279,5 +296,5 @@
     return n.toLocaleString("fr-FR", { maximumFractionDigits: digits }) + " €";
   }
 
-  global.DVF = { geocode, reverse, fetchCommune, fetchFallback, analyse, dpeCoef, DPE_COEF, haversine, fmtEur, stats, parseCSV, cleanMutations };
+  global.DVF = { geocode, reverse, fetchCommune, fetchPrebuilt, fetchFallback, analyse, dpeCoef, DPE_COEF, haversine, fmtEur, stats, parseCSV, cleanMutations };
 })(typeof window !== "undefined" ? window : globalThis);

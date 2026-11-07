@@ -5,9 +5,13 @@ Estimation du prix au m² d'un bien immobilier **à partir des ventes réelles**
 avec **ajustement selon la classe DPE** et un module « projet » : vendre un bien ici,
 acheter là-bas, bilan financier.
 
-Site 100 % statique (HTML / CSS / JavaScript), sans serveur ni base de données :
-le navigateur télécharge directement les fichiers DVF de la commune concernée depuis
-`files.data.gouv.fr`. Hébergeable sur GitHub Pages.
+Site 100 % statique (HTML / CSS / JavaScript), sans serveur ni base de données.
+Les fichiers DVF ne peuvent pas être lus directement par un navigateur depuis un autre
+site (pas de CORS sur `files.data.gouv.fr`), donc une **GitHub Action** (`.github/workflows/update-data.yml`)
+télécharge les données par département, les nettoie avec `scripts/build-data.mjs` et les
+range en JSON compact dans `data/<code INSEE>.json`. Le site lit ces fichiers depuis sa propre
+origine. Par défaut : Île-de-France (75, 77, 78, 91, 92, 93, 94, 95) ; la liste se change dans
+le script ou au lancement manuel de l'Action. Mise à jour automatique le 1er de chaque mois.
 
 ## Fonctionnalités
 
@@ -37,10 +41,14 @@ python3 -m http.server 8000
 
 Tests du nettoyage : `node test/test_dvf.js`.
 
+Générer les données en local (Île-de-France, quelques minutes) : `node scripts/build-data.mjs`
+ou un seul département : `node scripts/build-data.mjs 94`.
+
 ## Déployer sur GitHub Pages
 
-Settings → Pages → Source : *Deploy from a branch* → `main` / `/ (root)`.
-Le site est alors disponible sur `https://<utilisateur>.github.io/<dépôt>/`.
+1. Onglet **Actions** → « Mise à jour des données DVF » → *Run workflow* (la première fois ; ensuite c'est mensuel).
+2. **Settings → Pages** → Source : *Deploy from a branch* → `main` / `/ (root)`.
+3. Le site est disponible sur `https://<utilisateur>.github.io/<dépôt>/`.
 
 ## Sources et licences
 

@@ -2,6 +2,7 @@
 # Ce fichier est généré par deploy/install.sh (domaine et mot de passe remplacés).
 __DOMAINE__ {
 	root * __DEST__
+__TLS__
 	encode gzip zstd
 
 	# Authentification : utilisateur / mot de passe (empreinte bcrypt)

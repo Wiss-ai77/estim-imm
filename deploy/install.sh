@@ -25,8 +25,14 @@ command -v caddy >/dev/null || { echo "Caddy n'est pas installé (voir https://c
 etape() { printf '\n\033[1m== %s ==\033[0m\n' "$1"; }
 
 etape "1/4  Domaine et accès"
-read -rp "Nom de domaine du site (ex. estim.fpt-pratique.fr) : " DOMAINE
-[ -n "$DOMAINE" ] || { echo "Domaine requis."; exit 1; }
+IP_VPS="$(curl -4 -s --max-time 5 https://api.ipify.org || hostname -I | awk '{print $1}')"
+read -rp "Nom de domaine du site (ex. estim.fpt-pratique.fr) — laisser vide pour utiliser l'IP $IP_VPS : " DOMAINE
+if [ -z "$DOMAINE" ]; then
+  DOMAINE="$IP_VPS"; TLS_LINE="\ttls internal"
+  echo "Accès par IP : https://$IP_VPS avec un certificat auto-signé (avertissement du navigateur à accepter une fois)."
+else
+  TLS_LINE=""
+fi
 read -rp "Identifiant de connexion [wissam] : " UTILISATEUR
 UTILISATEUR=${UTILISATEUR:-wissam}
 while true; do
@@ -38,10 +44,11 @@ done
 HASH="$(caddy hash-password --plaintext "$MDP")"
 unset MDP MDP2
 
-RESOLU="$(getent ahostsv4 "$DOMAINE" | awk 'NR==1{print $1}' || true)"
-IP_VPS="$(curl -4 -s --max-time 5 https://api.ipify.org || hostname -I | awk '{print $1}')"
-if [ "$RESOLU" = "$IP_VPS" ]; then echo "OK : $DOMAINE pointe vers ce serveur ($IP_VPS)."
-else echo "ATTENTION : $DOMAINE pointe vers '${RESOLU:-rien}' et ce serveur a l'IP $IP_VPS. Créez un enregistrement DNS A $DOMAINE → $IP_VPS (IONOS). Le HTTPS marchera une fois le DNS propagé."; fi
+if [ "$DOMAINE" != "$IP_VPS" ]; then
+  RESOLU="$(getent ahostsv4 "$DOMAINE" | awk 'NR==1{print $1}' || true)"
+  if [ "$RESOLU" = "$IP_VPS" ]; then echo "OK : $DOMAINE pointe vers ce serveur ($IP_VPS)."
+  else echo "ATTENTION : $DOMAINE pointe vers '${RESOLU:-rien}' et ce serveur a l'IP $IP_VPS. Créez un enregistrement DNS A $DOMAINE → $IP_VPS (IONOS). Le HTTPS marchera une fois le DNS propagé."; fi
+fi
 
 etape "2/4  Copie du site"
 mkdir -p "$DEST"
@@ -50,8 +57,10 @@ echo "Site copié dans $DEST ($(du -sh "$DEST" | cut -f1))."
 
 etape "3/4  Configuration Caddy"
 mkdir -p /etc/caddy/sites /var/log/caddy
-sed -e "s|__DOMAINE__|$DOMAINE|" -e "s|__DEST__|$DEST|" -e "s|__UTILISATEUR__|$UTILISATEUR|" -e "s|__HASH__|$HASH|" \
+sed -e "s|__DOMAINE__|$DOMAINE|" -e "s|__DEST__|$DEST|" -e "s|__UTILISATEUR__|$UTILISATEUR|" -e "s|__HASH__|$HASH|" -e "s|__TLS__|$TLS_LINE|" \
   "$SOURCE/deploy/estim-immo.caddy" > "$SITE_CONF"
+# Pare-feu : ouvrir 80/443 si ufw est actif
+if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then ufw allow 80/tcp >/dev/null; ufw allow 443/tcp >/dev/null; fi
 if ! grep -qE '^\s*import\s+/etc/caddy/sites/\*' "$CADDYFILE" 2>/dev/null; then
   cp "$CADDYFILE" "$CADDYFILE.sauvegarde.$(date +%Y%m%d%H%M%S)" 2>/dev/null || true
   printf '\n# Sites supplémentaires (un fichier par site)\nimport /etc/caddy/sites/*.caddy\n' >> "$CADDYFILE"

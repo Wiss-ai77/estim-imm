@@ -17,8 +17,11 @@
 
   /* ---------- Géocodage ---------- */
   async function geocode(q, limit = 5) {
+    q = String(q || "").trim();
+    if (q.length < 3) throw new Error("Adresse trop courte : indiquez au moins une commune.");
     const url = `${ADRESSE_API}/search/?q=${encodeURIComponent(q)}&limit=${limit}`;
     const r = await fetch(url);
+    if (r.status === 400) throw new Error("Adresse non comprise par l'API Adresse : essayez « numéro rue, code postal ville ».");
     if (!r.ok) throw new Error("API Adresse indisponible (" + r.status + ")");
     const j = await r.json();
     return (j.features || []).map(f => ({

@@ -239,6 +239,9 @@
   $("btn-project").addEventListener("click", runProject);
 
   async function estimateFor(addrText, type, surface, dpe, adjPrefix) {
+    addrText = (addrText || "").trim();
+    if (addrText.length < 3) throw new Error(adjPrefix === "pb-" ? "Indiquez l'adresse ou la commune du bien à acheter." : "Indiquez l'adresse du bien à vendre.");
+    if (!(surface > 0)) throw new Error(adjPrefix === "pb-" ? "Indiquez la surface du bien à acheter." : "Indiquez la surface du bien à vendre.");
     const r = await geocode(addrText, 1);
     if (!r[0]) throw new Error(`Adresse introuvable : « ${addrText} »`);
     const pos = r[0];
@@ -334,8 +337,8 @@
       if (seen.has(key)) return; seen.add(key);
       origins.push({ label, pos });
     };
-    await add("🏠 À vendre — " + $("p-sell-addr").value, $("p-sell-addr").value);
-    await add("🔑 À acheter — " + $("p-buy-addr").value, $("p-buy-addr").value);
+    if ($("p-sell-addr").value.trim().length >= 3) await add("🏠 À vendre — " + $("p-sell-addr").value, $("p-sell-addr").value);
+    if ($("p-buy-addr").value.trim().length >= 3) await add("🔑 À acheter — " + $("p-buy-addr").value, $("p-buy-addr").value);
     if (state.pos) await add("📍 Estimateur — " + state.pos.label, null, state.pos);
     return origins;
   }

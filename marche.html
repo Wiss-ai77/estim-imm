@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estim'Immo — Marché : évolution des prix par commune</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="index.html">Estim'<span>Immo</span></a>
+    <nav>
+      <a href="index.html">Estimateur</a>
+      <a href="marche.html" class="active">Marché</a>
+      <a href="index.html#projet">Mon projet</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero compact">
+    <h1>Quelles communes <em>bougent</em> ?</h1>
+    <p class="lead">Toutes les ventes DVF d'Île-de-France agrégées par commune et par année : prix médian au m², évolution sur un an et depuis 2021, volumes. Pour repérer les secteurs qui montent, ceux qui baissent, et comparer avant d'acheter.</p>
+  </section>
+
+  <section class="card">
+    <div class="row gap wrap-row">
+      <label class="field"><span>Type de bien</span>
+        <select id="m-type"><option value="A">Appartements</option><option value="M">Maisons</option></select></label>
+      <div class="field"><span>Départements</span>
+        <div id="m-deps" class="chips"></div></div>
+      <label class="field"><span>Ventes minimum par an</span>
+        <select id="m-min"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option></select></label>
+      <label class="field grow"><span>Rechercher une commune</span>
+        <input id="m-search" type="search" placeholder="ex. Charenton, Vincennes, Pontault…"></label>
+    </div>
+    <div id="m-status" class="status"></div>
+
+    <div class="kpis" id="m-kpis">
+      <div class="kpi"><div class="kpi-label">Communes analysées</div><div class="kpi-value" id="k-communes">—</div><div class="kpi-sub" id="k-ventes">—</div></div>
+      <div class="kpi"><div class="kpi-label">Évolution médiane sur 1 an</div><div class="kpi-value" id="k-evol1">—</div><div class="kpi-sub" id="k-evol1-sub">—</div></div>
+      <div class="kpi"><div class="kpi-label">Évolution médiane depuis 2021</div><div class="kpi-value" id="k-evol4">—</div><div class="kpi-sub" id="k-evol4-sub">—</div></div>
+    </div>
+
+    <div id="m-map" class="map"></div>
+    <p class="muted small">Cercles : taille = nombre de ventes, couleur = évolution du prix médian sur un an (vert = hausse, rouge = baisse). Cliquez pour le détail et l'estimateur.</p>
+
+    <div class="grid-2 tops">
+      <div><h3>📈 Plus fortes hausses sur 1 an</h3><ol id="m-top-up"></ol></div>
+      <div><h3>📉 Plus fortes baisses sur 1 an</h3><ol id="m-top-down"></ol></div>
+    </div>
+
+    <h3 style="margin-top:22px">Toutes les communes <span class="muted small">(cliquez sur un en-tête pour trier)</span></h3>
+    <div class="table-wrap">
+      <table class="table sortable" id="m-table">
+        <thead><tr>
+          <th data-k="name">Commune</th>
+          <th data-k="dep">Dép.</th>
+          <th class="num" data-k="n">Ventes <span id="th-year"></span></th>
+          <th class="num" data-k="med">Médiane €/m²</th>
+          <th class="num" data-k="p">P25 – P75</th>
+          <th class="num" data-k="evol1">Évol. 1 an</th>
+          <th class="num" data-k="evol4">Depuis 2021</th>
+          <th class="num" data-k="vol">Volume 1 an</th>
+          <th>Tendance</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="muted small" id="m-note"></p>
+  </section>
+
+  <section class="card">
+    <h2>Lecture</h2>
+    <ul class="method">
+      <li><strong>Médiane €/m²</strong> : prix au m² médian des ventes de l'année (surface réelle bâtie), même nettoyage que l'estimateur. Les communes avec trop peu de ventes sont masquées (réglage « ventes minimum »).</li>
+      <li><strong>Évol. 1 an</strong> : dernière année disponible par rapport à la précédente. <strong>Depuis 2021</strong> : par rapport à la première année de la base. Une évolution calculée sur une année partielle (données publiées en avril) est signalée.</li>
+      <li><strong>Volume</strong> : variation du nombre de ventes sur un an. Un marché où les prix montent avec des volumes en hausse est plus solide qu'une hausse sur quelques ventes.</li>
+      <li><strong>Attention</strong> : une médiane bouge aussi quand la composition des ventes change (plus de petites surfaces, un programme neuf revendu, etc.). Croisez toujours avec l'estimateur sur l'adresse précise.</li>
+    </ul>
+  </section>
+</main>
+
+<footer class="site-footer"><div class="wrap"><span>Estim'Immo — données DVF (Licence Ouverte 2.0).</span><a href="index.html">← Estimateur</a></div></footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="js/marche.js"></script>
+</body>
+</html>

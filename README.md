@@ -20,6 +20,7 @@ le script ou au lancement manuel de l'Action. Mise à jour automatique le 1er de
 - 📊 Médiane et fourchette P25–P75 du prix au m² dans un rayon réglable (300 m → commune entière), évolution par année, liste des ventes comparables.
 - 🔋 Ajustement DPE (A → G) d'après l'étude « valeur verte » des Notaires de France (transactions 2024), avec deux jeux de coefficients : Île-de-France (écarts atténués) ou France entière.
 - 🏠🔑 Module projet : estimation du bien à vendre et du bien à acheter, frais d'agence, capital restant dû, frais de notaire, apport → solde et surface finançable.
+- 📈 Page **Marché** (`marche.html`) : toutes les communes d'Île-de-France comparées — prix médian, évolution 1 an et depuis 2021, volumes, carte, top hausses/baisses, tri et filtres (à partir de `data/stats.json`, généré par `scripts/build-stats.mjs`).
 - 🕘 Historique des demandes (estimations, projets, trajets) conservé dans le navigateur, rechargeable, exportable en CSV/JSON.
 - 🚗🚇 Temps de trajet vers Paris (OSRM sans clé ; Google Routes et Île-de-France Mobilités avec vos clés, stockées localement).
 - 🔗 Pré-remplissage par URL : `?q=adresse&type=Maison&surface=100&dpe=D&auto=1`.

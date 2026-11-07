@@ -70,6 +70,9 @@ async function main() {
   }
   await writeFile(path.join(OUT, "index.json"), JSON.stringify(index, null, 1));
   console.log(`Index : ${Object.keys(index.communes).length} communes, généré le ${index.generated}`);
+  const { buildStats } = await import("./build-stats.mjs");
+  const st = await buildStats();
+  console.log(`Statistiques marché : ${st.communes.length} communes, données jusqu'à ${st.lastMonth}`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

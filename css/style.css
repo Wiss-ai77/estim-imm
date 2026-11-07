@@ -163,3 +163,18 @@ code { background: var(--bg); padding: 1px 5px; border-radius: 5px; font-size: 9
 @media (max-width: 760px) { .adj-grid { grid-template-columns: 1fr; } }
 #adj-table td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
 #adj-table tr.total td { font-weight: 600; border-top: 2px solid var(--line); }
+
+/* Page Marché */
+.hero.compact { padding: 36px 0 10px; }
+.site-header nav a.active { color: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 999px; padding: 5px 10px; font-size: 13px; background: #fff; cursor: pointer; }
+.chip input { width: 14px; height: 14px; min-height: 0; margin: 0; }
+.chip small { color: var(--muted); }
+.up { color: #0b6b3a; } .down { color: var(--bad); } .flat { color: var(--muted); }
+.tops h3 { font-size: 18px; }
+.tops ol { padding-left: 22px; margin: 0; }
+.tops li { margin: 4px 0; font-size: 14px; }
+.sortable th { cursor: pointer; user-select: none; }
+.sortable th.sorted { color: var(--accent); }
+.sortable th:hover { color: var(--ink); }

@@ -19,10 +19,24 @@ DEPLOY_USER=estimdeploy
 SOURCE="$(cd "$(dirname "$0")/.." && pwd)"
 
 [ "$(id -u)" = 0 ] || { echo "Lancez ce script avec sudo."; exit 1; }
-command -v caddy >/dev/null || { echo "Caddy n'est pas installé (voir https://caddyserver.com/docs/install)."; exit 1; }
 [ -f "$SOURCE/index.html" ] || { echo "Lancez le script depuis le dossier du dépôt (index.html introuvable)."; exit 1; }
 
 etape() { printf '\n\033[1m== %s ==\033[0m\n' "$1"; }
+
+etape "0/4  Logiciels nécessaires (rsync, curl, Caddy)"
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq
+apt-get install -y -qq rsync curl gnupg ca-certificates debian-keyring debian-archive-keyring apt-transport-https >/dev/null
+if ! command -v caddy >/dev/null; then
+  echo "Installation de Caddy (serveur web avec HTTPS automatique)…"
+  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor --yes -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' > /etc/apt/sources.list.d/caddy-stable.list
+  chmod o+r /usr/share/keyrings/caddy-stable-archive-keyring.gpg /etc/apt/sources.list.d/caddy-stable.list
+  apt-get update -qq && apt-get install -y -qq caddy >/dev/null
+  # Caddyfile de base si absent
+  [ -s "$CADDYFILE" ] || printf '# Caddyfile principal\n' > "$CADDYFILE"
+fi
+echo "Caddy $(caddy version | awk '{print $1}') prêt."
 
 etape "1/4  Domaine et accès"
 IP_VPS="$(curl -4 -s --max-time 5 https://api.ipify.org || hostname -I | awk '{print $1}')"

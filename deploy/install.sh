@@ -80,7 +80,10 @@ if ! grep -qE '^\s*import\s+/etc/caddy/sites/\*' "$CADDYFILE" 2>/dev/null; then
   printf '\n# Sites supplémentaires (un fichier par site)\nimport /etc/caddy/sites/*.caddy\n' >> "$CADDYFILE"
 fi
 caddy validate --config "$CADDYFILE" --adapter caddyfile
-systemctl reload caddy
+systemctl enable caddy >/dev/null 2>&1 || true
+if systemctl is-active --quiet caddy; then systemctl reload caddy; else systemctl restart caddy; fi
+sleep 2
+systemctl is-active --quiet caddy || { echo "Caddy ne démarre pas. Détails :"; journalctl -u caddy -n 20 --no-pager; exit 1; }
 chown -R caddy:caddy /var/log/caddy 2>/dev/null || true
 echo "Caddy rechargé : https://$DOMAINE (identifiant $UTILISATEUR)."
 

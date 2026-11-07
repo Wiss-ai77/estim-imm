@@ -291,10 +291,68 @@
     return cls in c ? c[cls] : 0;
   }
 
+  /* ---------- Ajustements du bien (ordres de grandeur de marché, Île-de-France) ----------
+   * pct : en proportion du prix (la médiane DVF = bien « standard » en bon état)
+   * fixed : montant forfaitaire en euros
+   */
+  const ADJUSTMENTS = {
+    etat: { label: "État général", type: "select", options: [
+      ["neuf", "Refait à neuf (moins de 5 ans)", { pct: .08 }],
+      ["bon", "Bon état / standard", { pct: 0 }],
+      ["rafraichir", "À rafraîchir (peintures, sols)", { pct: -.05 }],
+      ["renover", "À rénover (cuisine, salle de bain, électricité)", { pct: -.12 }],
+      ["gros", "Gros travaux (toiture, structure, tout à refaire)", { pct: -.20 }]
+    ] },
+    stationnement: { label: "Stationnement", type: "select", options: [
+      ["aucun", "Aucun / rue", { pct: 0 }],
+      ["place", "1 place extérieure privative", { fixed: 7000 }],
+      ["garage", "1 garage fermé / box", { fixed: 15000 }],
+      ["double", "2 places ou garage double", { fixed: 22000 }]
+    ] },
+    abri: { label: "Abri de jardin / dépendance", type: "check", pct: 0, fixed: 2000, only: "Maison" },
+    piscine: { label: "Piscine enterrée", type: "check", fixed: 15000, only: "Maison" },
+    exterieur: { label: "Balcon / terrasse / jardin privatif", type: "check", pct: .04, only: "Appartement" },
+    dernier: { label: "Dernier étage avec ascenseur, ou vue dégagée", type: "check", pct: .03, only: "Appartement" },
+    rdc: { label: "Rez-de-chaussée", type: "check", pct: -.05, only: "Appartement" },
+    sansasc: { label: "4e étage ou plus sans ascenseur", type: "check", pct: -.08, only: "Appartement" },
+    lumineux: { label: "Très lumineux / exposition sud", type: "check", pct: .02 },
+    nuisance: { label: "Nuisances (bruit, vis-à-vis, voie passante)", type: "check", pct: -.05 },
+    terrain: { label: "Terrain (m²)", type: "number", only: "Maison" } // comparé à la médiane des ventes voisines
+  };
+
+  /**
+   * values : {etat:"bon", stationnement:"garage", abri:true, terrain:420, …}
+   * ctx    : {type, terrainMedian}
+   * → {pct, fixed, lines:[{label, pct, fixed}]}
+   */
+  function applyAdjustments(values, ctx) {
+    let pct = 0, fixed = 0; const lines = [];
+    for (const [key, def] of Object.entries(ADJUSTMENTS)) {
+      if (def.only && def.only !== ctx.type) continue;
+      const v = values[key];
+      if (def.type === "select") {
+        const opt = def.options.find(o => o[0] === v); if (!opt) continue;
+        const eff = opt[2]; if (!eff.pct && !eff.fixed) continue;
+        pct += eff.pct || 0; fixed += eff.fixed || 0; lines.push({ label: opt[1], pct: eff.pct || 0, fixed: eff.fixed || 0 });
+      } else if (def.type === "check") {
+        if (!v) continue;
+        pct += def.pct || 0; fixed += def.fixed || 0; lines.push({ label: def.label, pct: def.pct || 0, fixed: def.fixed || 0 });
+      } else if (def.type === "number" && key === "terrain") {
+        const t = +v; if (!(t > 0) || !(ctx.terrainMedian > 0)) continue;
+        // ±1 % par tranche de 10 % d'écart avec le terrain médian des ventes comparables, plafonné à ±10 %
+        const ecart = (t - ctx.terrainMedian) / ctx.terrainMedian;
+        const p = Math.max(-.10, Math.min(.10, ecart * 0.1));
+        if (Math.abs(p) < .005) continue;
+        pct += p; lines.push({ label: `Terrain ${t} m² vs ${Math.round(ctx.terrainMedian)} m² médian`, pct: p, fixed: 0 });
+      }
+    }
+    return { pct, fixed, lines };
+  }
+
   function fmtEur(n, digits = 0) {
     if (!isFinite(n)) return "—";
     return n.toLocaleString("fr-FR", { maximumFractionDigits: digits }) + " €";
   }
 
-  global.DVF = { geocode, reverse, fetchCommune, fetchPrebuilt, fetchFallback, analyse, dpeCoef, DPE_COEF, haversine, fmtEur, stats, parseCSV, cleanMutations };
+  global.DVF = { geocode, reverse, fetchCommune, fetchPrebuilt, fetchFallback, ADJUSTMENTS, applyAdjustments, analyse, dpeCoef, DPE_COEF, haversine, fmtEur, stats, parseCSV, cleanMutations };
 })(typeof window !== "undefined" ? window : globalThis);

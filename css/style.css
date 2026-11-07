@@ -152,3 +152,14 @@ code { background: var(--bg); padding: 1px 5px; border-radius: 5px; font-size: 9
 /* Historique */
 .btn-sm { padding: 5px 10px; min-height: 30px; font-size: 13px; }
 .nowrap { white-space: nowrap; }
+
+/* Ajustements */
+.adj { border-top: none; border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; margin: 6px 0 14px; background: #fff; }
+.adj summary { font-size: 14px; }
+.adj-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 16px; margin-top: 10px; }
+.adj-grid .field.full { grid-column: 1 / -1; }
+.adj-grid .check { display: flex; align-items: center; gap: 8px; font-size: 14px; padding: 4px 0; }
+.adj-grid .check input { width: 16px; height: 16px; min-height: 0; margin: 0; }
+@media (max-width: 760px) { .adj-grid { grid-template-columns: 1fr; } }
+#adj-table td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+#adj-table tr.total td { font-weight: 600; border-top: 2px solid var(--line); }

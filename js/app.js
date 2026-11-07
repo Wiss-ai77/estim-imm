@@ -90,6 +90,36 @@
     catch (err) { setStatus(err.message, "err"); }
   }
 
+  /* ---------- Formulaires d'ajustements ---------- */
+  const { ADJUSTMENTS, applyAdjustments } = window.DVF;
+  function renderAdjForm(containerId, prefix, type, keep = {}) {
+    const c = $(containerId); if (!c) return;
+    c.innerHTML = Object.entries(ADJUSTMENTS).filter(([, d]) => !d.only || d.only === type).map(([key, d]) => {
+      const id = prefix + key, v = keep[key];
+      if (d.type === "select") return `<label class="field"><span>${esc(d.label)}</span><select id="${id}">${d.options.map(o => { const sel = v !== undefined ? v === o[0] : (!o[2].pct && !o[2].fixed); return `<option value="${o[0]}"${sel ? " selected" : ""}>${esc(o[1])}</option>`; }).join("")}</select></label>`;
+      if (d.type === "number") return `<label class="field"><span>${esc(d.label)}</span><input id="${id}" type="number" min="0" step="10" value="${v ?? ""}" placeholder="ex. 400"></label>`;
+      return `<label class="check"><input id="${id}" type="checkbox"${v ? " checked" : ""}> ${esc(d.label)}</label>`;
+    }).join("");
+  }
+  function readAdj(prefix, type) {
+    const out = {};
+    for (const [key, d] of Object.entries(ADJUSTMENTS)) {
+      if (d.only && d.only !== type) continue;
+      const el = $(prefix + key); if (!el) continue;
+      out[key] = d.type === "check" ? el.checked : el.value;
+    }
+    return out;
+  }
+  renderAdjForm("adj-form", "adj-", $("type").value);
+  renderAdjForm("ps-form", "ps-", $("p-sell-type").value);
+  renderAdjForm("pb-form", "pb-", $("p-buy-type").value);
+  $("type").addEventListener("change", () => { renderAdjForm("adj-form", "adj-", $("type").value, readAdj("adj-", $("type").value)); if (!$("results").hidden) runEstimate({ silent: true }); });
+  $("p-sell-type").addEventListener("change", () => renderAdjForm("ps-form", "ps-", $("p-sell-type").value));
+  $("p-buy-type").addEventListener("change", () => renderAdjForm("pb-form", "pb-", $("p-buy-type").value));
+  $("adj-form").addEventListener("change", () => { if (!$("results").hidden) runEstimate({ silent: true }); });
+  const terrainMedian = (sales) => { const t = sales.map(s => s.terrain).filter(x => x > 0).sort((a, b) => a - b); return t.length ? t[Math.floor(t.length / 2)] : 0; };
+  const pctTxt = (p) => (p >= 0 ? "+" : "−") + Math.round(Math.abs(p) * 100) + " %";
+
   /* ---------- Estimation ---------- */
   $("btn-estimate").addEventListener("click", () => runEstimate());
   ["type", "dpe", "surface", "radius", "period", "region"].forEach(id => $(id).addEventListener("change", () => { if (!$("results").hidden) runEstimate({ silent: true }); }));
@@ -123,15 +153,16 @@
     try {
       const { sales, source, generated } = await loadSales(pos, radius);
       const a = analyse(sales, { lat: pos.lat, lon: pos.lon, radius, type, months });
-      renderResults(a, { type, surface, dpe, region, radius, source, pos });
+      const adjValues = readAdj("adj-", type);
+      const adj = applyAdjustments(adjValues, { type, terrainMedian: terrainMedian(a.selected) });
+      const est = renderResults(a, { type, surface, dpe, region, radius, source, pos, adj });
       setStatus(source === "fallback" ? "Données issues de l'API de secours (couverture possiblement partielle)."
         : `Ventes DVF de ${pos.city} : ${sales.length} logements${generated ? ", données préparées le " + fmtDate(generated) : ""}.`);
       if (!opts.silent && isFinite(a.stats.median)) {
-        const coef = dpe === "?" ? 0 : dpeCoef(region, type, dpe);
         window.HISTORIQUE.add({
           kind: "estimation", titre: pos.label,
-          resume: `${type} ${surface ? surface + " m², " : ""}DPE ${dpe} · ${fmtEur(a.stats.median)}/m² brut (${a.stats.n} ventes, ${a.periodNote})${surface ? " → " + fmtEur(a.stats.median * (1 + coef) * surface) : ""}`,
-          params: { pos: { lat: pos.lat, lon: pos.lon, citycode: pos.citycode, city: pos.city, label: pos.label }, type, surface, dpe, radius, months, region }
+          resume: `${type} ${surface ? surface + " m², " : ""}DPE ${dpe}${adj.lines.length ? ", " + adj.lines.length + " ajustement(s)" : ""} · ${fmtEur(a.stats.median)}/m² brut (${a.stats.n} ventes, ${a.periodNote})${surface && est ? " → " + fmtEur(est.value) : ""}`,
+          params: { pos: { lat: pos.lat, lon: pos.lon, citycode: pos.citycode, city: pos.city, label: pos.label }, type, surface, dpe, radius, months, region, adj: adjValues }
         });
       }
     } catch (err) {
@@ -150,20 +181,33 @@
     $("kpi-count").innerHTML = st.n + (a.fragile ? ' <span class="badge fragile">échantillon fragile</span>' : "");
     $("kpi-scope").textContent = o.radius < 99999 ? `dans un rayon de ${o.radius >= 1000 ? (o.radius / 1000) + " km" : o.radius + " m"} · ${a.within.length} ${typeLabel} au total sur la période complète` : `sur toute la commune (${o.pos.city})`;
 
-    // DPE
+    // DPE + caractéristiques
     const coef = o.dpe === "?" ? 0 : dpeCoef(o.region, o.type, o.dpe);
-    const adj = st.median * (1 + coef);
-    $("kpi-dpe-label").textContent = o.dpe === "?" ? "sans ajustement DPE" : `DPE ${o.dpe} (${coef >= 0 ? "+" : ""}${Math.round(coef * 100)} %)`;
-    if (o.surface > 0 && isFinite(adj)) {
-      $("kpi-estimate").textContent = fmtEur(adj * o.surface);
-      $("kpi-estimate-range").textContent = `${fmtEur(st.p25 * (1 + coef) * o.surface)} – ${fmtEur(st.p75 * (1 + coef) * o.surface)} pour ${o.surface} m² · soit ${fmtEur(adj)}/m²`;
+    const adj = o.adj || { pct: 0, fixed: 0, lines: [] };
+    const factor = (1 + coef) * (1 + adj.pct);
+    const ppm2 = st.median * factor;
+    const total = o.surface > 0 ? ppm2 * o.surface + adj.fixed : NaN;
+    $("kpi-dpe-label").textContent = (o.dpe === "?" ? "sans ajustement DPE" : `DPE ${o.dpe} (${pctTxt(coef)})`) + (adj.lines.length ? ` · ${adj.lines.length} caractéristique${adj.lines.length > 1 ? "s" : ""}` : "");
+    if (o.surface > 0 && isFinite(ppm2)) {
+      $("kpi-estimate").textContent = fmtEur(total);
+      $("kpi-estimate-range").textContent = `${fmtEur(st.p25 * factor * o.surface + adj.fixed)} – ${fmtEur(st.p75 * factor * o.surface + adj.fixed)} pour ${o.surface} m² · soit ${fmtEur(total / o.surface)}/m²`;
     } else {
-      $("kpi-estimate").textContent = isFinite(adj) ? fmtEur(adj) + "/m²" : "—";
+      $("kpi-estimate").textContent = isFinite(ppm2) ? fmtEur(ppm2) + "/m²" : "—";
       $("kpi-estimate-range").textContent = o.surface > 0 ? "" : "Indiquez une surface pour obtenir un prix total.";
     }
     $("dpe-explain").innerHTML = o.dpe === "?"
       ? "Sans classe DPE, l'estimation reprend la médiane du secteur telle quelle (équivalent d'un bien de classe D)."
-      : `La médiane des ventes mélange toutes les étiquettes ; elle est prise comme référence d'un bien <b>classe D</b>. Pour un <b>${o.type.toLowerCase()} classe ${o.dpe}</b> en <b>${o.region === "idf" ? "Île-de-France" : "France entière"}</b>, l'écart retenu est de <b>${coef >= 0 ? "+" : ""}${Math.round(coef * 100)} %</b> (Notaires de France, étude « valeur verte », transactions 2024). ${o.dpe >= "F" ? "Pensez aussi à l'audit énergétique obligatoire à la vente pour les F et G, et aux travaux que l'acheteur va négocier." : ""}`;
+      : `La médiane des ventes mélange toutes les étiquettes ; elle est prise comme référence d'un bien <b>classe D</b>. Pour un <b>${o.type.toLowerCase()} classe ${o.dpe}</b> en <b>${o.region === "idf" ? "Île-de-France" : "France entière"}</b>, l'écart retenu est de <b>${pctTxt(coef)}</b> (Notaires de France, étude « valeur verte », transactions 2024). ${o.dpe >= "F" ? "Pensez aussi à l'audit énergétique obligatoire à la vente pour les F et G, et aux travaux que l'acheteur va négocier." : ""}`;
+    const at = $("adj-table").querySelector("tbody");
+    const base = o.surface > 0 ? st.median * o.surface : st.median;
+    const unit = o.surface > 0 ? "" : "/m²";
+    at.innerHTML = [
+      `<tr><td>Médiane du secteur${o.surface > 0 ? ` × ${o.surface} m²` : ""}</td><td>${fmtEur(base)}${unit}</td></tr>`,
+      coef ? `<tr><td>DPE ${o.dpe}</td><td>${pctTxt(coef)}</td></tr>` : "",
+      ...adj.lines.map(l => `<tr><td>${esc(l.label)}</td><td>${l.pct ? pctTxt(l.pct) : ""}${l.fixed ? (o.surface > 0 ? " + " + fmtEur(l.fixed) : " (+ " + fmtEur(l.fixed) + " forfaitaire)") : ""}</td></tr>`),
+      `<tr class="total"><td>Estimation</td><td>${o.surface > 0 ? fmtEur(total) : fmtEur(ppm2) + "/m²"}</td></tr>`
+    ].join("");
+    renderResults.last = { value: total, ppm2, factor };
 
     // Années
     const tb = $("years-table").querySelector("tbody");
@@ -188,12 +232,13 @@
       map.fitBounds(b.pad(.15));
     }
     res.scrollIntoView({ behavior: "smooth", block: "start" });
+    return renderResults.last;
   }
 
   /* ---------- Projet vente / achat ---------- */
   $("btn-project").addEventListener("click", runProject);
 
-  async function estimateFor(addrText, type, surface, dpe) {
+  async function estimateFor(addrText, type, surface, dpe, adjPrefix) {
     const r = await geocode(addrText, 1);
     if (!r[0]) throw new Error(`Adresse introuvable : « ${addrText} »`);
     const pos = r[0];
@@ -205,8 +250,9 @@
     if (a.stats.n < 8 && !whole) { a = analyse(sales, { lat: pos.lat, lon: pos.lon, radius: 99999, type, months: 24 }); scopeWhole = true; }
     if (!isFinite(a.stats.median)) throw new Error(`Aucune vente de ${type.toLowerCase()} trouvée à ${pos.city} dans les données DVF.`);
     const coef = dpeCoef($("region").value, type, dpe);
-    const ppm2 = a.stats.median * (1 + coef);
-    return { pos, a, coef, ppm2, value: ppm2 * surface, scopeWhole, source };
+    const adj = adjPrefix ? applyAdjustments(readAdj(adjPrefix, type), { type, terrainMedian: terrainMedian(a.selected) }) : { pct: 0, fixed: 0, lines: [] };
+    const ppm2 = a.stats.median * (1 + coef) * (1 + adj.pct);
+    return { pos, a, coef, adj, ppm2, value: ppm2 * surface + adj.fixed, scopeWhole, source };
   }
 
   async function runProject() {
@@ -214,8 +260,8 @@
     ps.className = "status inline"; ps.textContent = "Calcul en cours…";
     $("btn-project").disabled = true;
     try {
-      const sell = await estimateFor($("p-sell-addr").value, $("p-sell-type").value, +$("p-sell-surf").value, $("p-sell-dpe").value);
-      const buy = await estimateFor($("p-buy-addr").value, $("p-buy-type").value, +$("p-buy-surf").value, $("p-buy-dpe").value);
+      const sell = await estimateFor($("p-sell-addr").value, $("p-sell-type").value, +$("p-sell-surf").value, $("p-sell-dpe").value, "ps-");
+      const buy = await estimateFor($("p-buy-addr").value, $("p-buy-type").value, +$("p-buy-surf").value, $("p-buy-dpe").value, "pb-");
 
       const agency = (+$("p-sell-agency").value || 0) / 100, crd = +$("p-sell-crd").value || 0;
       const notary = (+$("p-buy-notary").value || 0) / 100, cash = +$("p-buy-cash").value || 0;
@@ -250,7 +296,8 @@
       window.HISTORIQUE.add({
         kind: "projet", titre: `${$("p-sell-addr").value} → ${$("p-buy-addr").value}`,
         resume: `Vente ${fmtEur(sell.value)} (${$("p-sell-type").value} ${$("p-sell-surf").value} m², DPE ${$("p-sell-dpe").value}) · Achat ${fmtEur(buy.value)} (${$("p-buy-type").value} ${$("p-buy-surf").value} m², DPE ${$("p-buy-dpe").value}) · Solde ${balance >= 0 ? "+" : "−"}${fmtEur(Math.abs(balance))}`,
-        params: Object.fromEntries(["p-sell-addr", "p-sell-type", "p-sell-surf", "p-sell-dpe", "p-sell-agency", "p-sell-crd", "p-buy-addr", "p-buy-type", "p-buy-surf", "p-buy-dpe", "p-buy-notary", "p-buy-cash"].map(id => [id, $(id).value]))
+        params: Object.assign(Object.fromEntries(["p-sell-addr", "p-sell-type", "p-sell-surf", "p-sell-dpe", "p-sell-agency", "p-sell-crd", "p-buy-addr", "p-buy-type", "p-buy-surf", "p-buy-dpe", "p-buy-notary", "p-buy-cash"].map(id => [id, $(id).value])),
+          { adjSell: readAdj("ps-", $("p-sell-type").value), adjBuy: readAdj("pb-", $("p-buy-type").value) })
       });
     } catch (err) {
       console.error(err);
@@ -261,8 +308,9 @@
   function paneHtml(e, surf, type, dpe) {
     const st = e.a.stats;
     const scope = e.scopeWhole ? `toute la commune de ${esc(e.pos.city)}` : `rayon 1 km`;
+    const adjTxt = e.adj && e.adj.lines.length ? " · " + e.adj.lines.map(l => `${l.label.split(" (")[0]} ${l.pct ? pctTxt(l.pct) : "+" + fmtEur(l.fixed)}`).join(", ") : "";
     return `<div><b>${fmtEur(e.value)}</b> <span class="muted">pour ${surf} m²</span></div>
-      <div>${fmtEur(e.ppm2)}/m² après DPE ${dpe} (${e.coef >= 0 ? "+" : ""}${Math.round(e.coef * 100)} %) · médiane brute ${fmtEur(st.median)}/m²</div>
+      <div>${fmtEur(e.ppm2)}/m² après DPE ${dpe} (${pctTxt(e.coef)})${adjTxt} · médiane brute ${fmtEur(st.median)}/m²</div>
       <div class="muted">${st.n} ${type === "Maison" ? "maisons" : "appartements"} vendus (${e.a.periodNote}), ${scope}${st.n < 8 ? ' <span class="badge fragile">fragile</span>' : ""}<br>P25–P75 : ${fmtEur(st.p25)} – ${fmtEur(st.p75)} /m² · ${esc(e.pos.label)}</div>`;
   }
 
@@ -332,10 +380,13 @@
     const p = e.params || {};
     if (e.kind === "estimation") {
       $("type").value = p.type; $("surface").value = p.surface || ""; $("dpe").value = p.dpe; $("radius").value = p.radius; $("period").value = p.months; $("region").value = p.region;
+      renderAdjForm("adj-form", "adj-", p.type, p.adj || {});
       setPosition(p.pos, 15); runEstimate({ silent: true });
       document.getElementById("estimateur").scrollIntoView({ behavior: "smooth" });
     } else if (e.kind === "projet") {
-      for (const [id, v] of Object.entries(p)) if ($(id)) $(id).value = v;
+      for (const [id, v] of Object.entries(p)) if (typeof v !== "object" && $(id)) $(id).value = v;
+      renderAdjForm("ps-form", "ps-", $("p-sell-type").value, p.adjSell || {});
+      renderAdjForm("pb-form", "pb-", $("p-buy-type").value, p.adjBuy || {});
       document.getElementById("projet").scrollIntoView({ behavior: "smooth" });
       runProject();
     } else if (e.kind === "trajet") {

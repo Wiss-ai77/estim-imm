@@ -85,6 +85,12 @@
       </label>
     </div>
 
+    <details class="details adj" open>
+      <summary>Caractéristiques du bien — ajustements par rapport à un bien standard</summary>
+      <div id="adj-form" class="adj-grid"></div>
+      <p class="muted small">Coefficients indicatifs (pratiques de marché en Île-de-France), modifiables dans <code>js/dvf.js</code>. La médiane DVF représente un bien en bon état, sans stationnement particulier.</p>
+    </details>
+
     <div class="row gap wrap-row">
       <label class="field">
         <span>Période</span>
@@ -127,8 +133,9 @@
       </div>
 
       <details class="details" open>
-        <summary>Ajustement DPE appliqué</summary>
+        <summary>Détail de l'estimation (DPE et caractéristiques)</summary>
         <div id="dpe-explain" class="explain"></div>
+        <table class="table" id="adj-table"><tbody></tbody></table>
       </details>
 
       <details class="details">
@@ -204,6 +211,7 @@
           <label class="field"><span>Surface</span><input id="p-sell-surf" type="number" value="100"></label>
           <label class="field"><span>DPE</span><select id="p-sell-dpe"><option>A</option><option>B</option><option>C</option><option selected>D</option><option>E</option><option>F</option><option>G</option></select></label>
         </div>
+        <details class="details adj"><summary>Caractéristiques du bien</summary><div id="ps-form" class="adj-grid"></div></details>
         <label class="field"><span>Frais d'agence à ma charge (%)</span><input id="p-sell-agency" type="number" value="4" step="0.5" min="0"></label>
         <label class="field"><span>Capital restant dû sur le prêt actuel (€)</span><input id="p-sell-crd" type="number" value="0" step="1000" min="0"></label>
         <div class="pane-result" id="p-sell-result">—</div>
@@ -217,6 +225,7 @@
           <label class="field"><span>Surface</span><input id="p-buy-surf" type="number" value="70"></label>
           <label class="field"><span>DPE</span><select id="p-buy-dpe"><option>A</option><option>B</option><option>C</option><option selected>D</option><option>E</option><option>F</option><option>G</option></select></label>
         </div>
+        <details class="details adj"><summary>Caractéristiques du bien</summary><div id="pb-form" class="adj-grid"></div></details>
         <label class="field"><span>Frais de notaire (%, ancien ≈ 7,5–8)</span><input id="p-buy-notary" type="number" value="7.8" step="0.1" min="0"></label>
         <label class="field"><span>Épargne / apport complémentaire (€)</span><input id="p-buy-cash" type="number" value="0" step="1000" min="0"></label>
         <div class="pane-result" id="p-buy-result">—</div>
@@ -256,6 +265,7 @@
       <li><strong>Nettoyage :</strong> ventes classiques uniquement (pas de VEFA, échanges, adjudications), un seul logement par transaction (les ventes en bloc, les mélanges maison + appartement et les locaux commerciaux sont exclus), prix au m² entre 500 et 25 000 €. La surface utilisée est la surface réelle bâtie.</li>
       <li><strong>Statistique :</strong> la médiane (moins sensible aux extrêmes que la moyenne) sur les ventes situées dans le rayon choisi, et la fourchette P25–P75. Moins de 8 ventes : le résultat est signalé comme fragile.</li>
       <li><strong>DPE :</strong> la médiane DVF mélange toutes les classes énergétiques ; on la considère comme représentative d'un bien de classe D (le cas le plus fréquent dans l'ancien) et on applique les écarts mesurés par les Notaires de France sur les transactions 2024 (étude « valeur verte », déc. 2025). En Île-de-France les écarts sont plus faibles qu'en province : environ +4 % pour un A-B et −5 % pour un F-G en petite couronne sur les appartements ; jusqu'à +17 % (A) et −25 % (G) sur les maisons au niveau national.</li>
+      <li><strong>Caractéristiques du bien :</strong> la médiane correspond à un bien standard en bon état. Les ajustements appliqués sont des ordres de grandeur de marché en Île-de-France : refait à neuf +8 %, à rafraîchir −5 %, à rénover −12 %, gros travaux −20 % ; garage fermé +15 000 €, place privative +7 000 €, piscine +15 000 €, abri de jardin +2 000 € ; appartement : extérieur +4 %, dernier étage/vue +3 %, rez-de-chaussée −5 %, 4e sans ascenseur −8 % ; lumineux +2 %, nuisances −5 % ; terrain d'une maison : ±1 % par 10 % d'écart avec le terrain médian des ventes voisines (plafonné à ±10 %). Ce sont des moyennes : un agent local peut les affiner.</li>
       <li><strong>Trajets :</strong> voiture par OSRM (OpenStreetMap, sans trafic) ou Google Routes API avec trafic prévu si vous fournissez une clé ; transports en commun par l'API Île-de-France Mobilités (PRIM, horaires théoriques) ou Google, avec votre clé. Le départ est fixé au prochain jour ouvré à l'heure choisie.</li>
       <li><strong>Ce que ça ne voit pas :</strong> l'état intérieur, l'étage, l'exposition, un jardin exceptionnel, la copropriété, et les ventes des 6 à 12 derniers mois. C'est un ordre de grandeur pour préparer une négociation, pas une expertise. Hors périmètre : Alsace, Moselle, Mayotte (pas de DVF).</li>
     </ul>

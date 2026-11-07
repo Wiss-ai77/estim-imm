@@ -1,0 +1,58 @@
+name: Déploiement sur le VPS
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "README.md"
+      - "test/**"
+  workflow_run:
+    workflows: ["Mise à jour des données DVF"]
+    types: [completed]
+
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Vérifier les secrets
+        id: check
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          if [ -z "$HOST" ] || [ -z "$KEY" ]; then
+            echo "Secrets VPS_HOST / VPS_SSH_KEY absents : déploiement ignoré (voir deploy/install.sh)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Préparer la clé SSH
+        if: steps.check.outputs.skip != 'true'
+        env:
+          KEY: ${{ secrets.VPS_SSH_KEY }}
+          HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Envoyer le site (rsync)
+        if: steps.check.outputs.skip != 'true'
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          USER: ${{ secrets.VPS_USER }}
+          DEST: ${{ secrets.VPS_PATH }}
+        run: |
+          rsync -az --delete \
+            --exclude .git --exclude .github --exclude deploy --exclude test --exclude scripts --exclude README.md \
+            ./ "$USER@$HOST:${DEST:-/var/www/estim-immo}/"
+          echo "Déployé sur $HOST:${DEST:-/var/www/estim-immo}"

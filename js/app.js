@@ -91,8 +91,8 @@
   }
 
   /* ---------- Estimation ---------- */
-  $("btn-estimate").addEventListener("click", runEstimate);
-  ["type", "dpe", "surface", "radius", "period", "region"].forEach(id => $(id).addEventListener("change", () => { if (!$("results").hidden) runEstimate(); }));
+  $("btn-estimate").addEventListener("click", () => runEstimate());
+  ["type", "dpe", "surface", "radius", "period", "region"].forEach(id => $(id).addEventListener("change", () => { if (!$("results").hidden) runEstimate({ silent: true }); }));
 
   const prebuiltCache = new Map();
   async function loadSales(pos, radius) {
@@ -115,7 +115,7 @@
     return { sales: await fetchFallback(pos.lat, pos.lon, Math.min(radius, 5000)), source: "fallback" };
   }
 
-  async function runEstimate() {
+  async function runEstimate(opts = {}) {
     const pos = state.pos; if (!pos) return;
     const type = $("type").value, radius = +$("radius").value, months = +$("period").value;
     const surface = +$("surface").value || 0, dpe = $("dpe").value, region = $("region").value;
@@ -126,6 +126,14 @@
       renderResults(a, { type, surface, dpe, region, radius, source, pos });
       setStatus(source === "fallback" ? "Données issues de l'API de secours (couverture possiblement partielle)."
         : `Ventes DVF de ${pos.city} : ${sales.length} logements${generated ? ", données préparées le " + fmtDate(generated) : ""}.`);
+      if (!opts.silent && isFinite(a.stats.median)) {
+        const coef = dpe === "?" ? 0 : dpeCoef(region, type, dpe);
+        window.HISTORIQUE.add({
+          kind: "estimation", titre: pos.label,
+          resume: `${type} ${surface ? surface + " m², " : ""}DPE ${dpe} · ${fmtEur(a.stats.median)}/m² brut (${a.stats.n} ventes, ${a.periodNote})${surface ? " → " + fmtEur(a.stats.median * (1 + coef) * surface) : ""}`,
+          params: { pos: { lat: pos.lat, lon: pos.lon, citycode: pos.citycode, city: pos.city, label: pos.label }, type, surface, dpe, radius, months, region }
+        });
+      }
     } catch (err) {
       console.error(err);
       setStatus("Impossible de charger les ventes : " + err.message, "err");
@@ -239,6 +247,11 @@
         <p class="muted small" style="margin:12px 0 0">Avec le net vendeur + apport, sans emprunt, vous pourriez viser environ <b>${Math.floor(affordableSurf)} m²</b> à ${esc(buy.pos.city)} (${fmtEur(buy.ppm2)}/m² ajusté DPE, frais de notaire inclus). Les prix de vente médians datent de 6 à 12 mois ; un marché en hausse ou en baisse décale les deux côtés.</p>`;
       ps.textContent = "";
       bal.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      window.HISTORIQUE.add({
+        kind: "projet", titre: `${$("p-sell-addr").value} → ${$("p-buy-addr").value}`,
+        resume: `Vente ${fmtEur(sell.value)} (${$("p-sell-type").value} ${$("p-sell-surf").value} m², DPE ${$("p-sell-dpe").value}) · Achat ${fmtEur(buy.value)} (${$("p-buy-type").value} ${$("p-buy-surf").value} m², DPE ${$("p-buy-dpe").value}) · Solde ${balance >= 0 ? "+" : "−"}${fmtEur(Math.abs(balance))}`,
+        params: Object.fromEntries(["p-sell-addr", "p-sell-type", "p-sell-surf", "p-sell-dpe", "p-sell-agency", "p-sell-crd", "p-buy-addr", "p-buy-type", "p-buy-surf", "p-buy-dpe", "p-buy-notary", "p-buy-cash"].map(id => [id, $(id).value]))
+      });
     } catch (err) {
       console.error(err);
       ps.className = "status inline err"; ps.textContent = err.message;
@@ -303,11 +316,35 @@
       const notes = [...new Set(results.flatMap(r => r.notes))];
       st.className = "status" + (notes.length ? " warn" : "");
       st.textContent = `Vers ${dest.label}, départ ${departure.toLocaleString("fr-FR", { weekday: "long", hour: "2-digit", minute: "2-digit" })}.` + (notes.length ? " " + notes.join(" · ") : "");
+      window.HISTORIQUE.add({
+        kind: "trajet", titre: `Vers ${dest.label}, ${$("t-time").value}`,
+        resume: origins.map((o, i) => `${o.label.split(" — ")[1] || o.label} : 🚗 ${results[i].car ? T.fmtMin(results[i].car.duration) : "—"}${results[i].transit ? " · 🚇 " + T.fmtMin(results[i].transit.duration) : ""}`).join(" | "),
+        params: { dest: tDest.value, destAddr: custom, time: $("t-time").value, sell: $("p-sell-addr").value, buy: $("p-buy-addr").value }
+      });
     } catch (err) {
       console.error(err);
       st.className = "status err"; st.textContent = err.message;
     } finally { $("btn-trajet").disabled = false; }
   }
+
+  /* ---------- Rechargement depuis l'historique ---------- */
+  window.HISTORIQUE.setReload((e) => {
+    const p = e.params || {};
+    if (e.kind === "estimation") {
+      $("type").value = p.type; $("surface").value = p.surface || ""; $("dpe").value = p.dpe; $("radius").value = p.radius; $("period").value = p.months; $("region").value = p.region;
+      setPosition(p.pos, 15); runEstimate({ silent: true });
+      document.getElementById("estimateur").scrollIntoView({ behavior: "smooth" });
+    } else if (e.kind === "projet") {
+      for (const [id, v] of Object.entries(p)) if ($(id)) $(id).value = v;
+      document.getElementById("projet").scrollIntoView({ behavior: "smooth" });
+      runProject();
+    } else if (e.kind === "trajet") {
+      if (p.dest) tDest.value = p.dest; $("t-dest-addr").value = p.destAddr || ""; $("t-time").value = p.time || "08:00";
+      if (p.sell) $("p-sell-addr").value = p.sell; if (p.buy) $("p-buy-addr").value = p.buy;
+      document.getElementById("trajets").scrollIntoView({ behavior: "smooth" });
+      runTrajets();
+    }
+  });
 
   /* ---------- utilitaires ---------- */
   function setStatus(msg, cls = "") { const s = $("status"); s.className = "status " + cls; s.textContent = msg; }

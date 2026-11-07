@@ -1,0 +1,29 @@
+# Site Estim'Immo — servi par Caddy avec HTTPS automatique et mot de passe.
+# Ce fichier est généré par deploy/install.sh (domaine et mot de passe remplacés).
+__DOMAINE__ {
+	root * __DEST__
+	encode gzip zstd
+
+	# Authentification : utilisateur / mot de passe (empreinte bcrypt)
+	basic_auth {
+		__UTILISATEUR__ __HASH__
+	}
+
+	# En-têtes de sécurité et interdiction d'indexation par les moteurs de recherche
+	header {
+		X-Robots-Tag "noindex, nofollow, noarchive"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Les données DVF changent au plus une fois par mois : cache court côté navigateur
+	@data path /data/*
+	header @data Cache-Control "public, max-age=3600"
+
+	file_server
+	log {
+		output file /var/log/caddy/estim-immo.log
+	}
+}

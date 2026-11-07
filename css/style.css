@@ -148,3 +148,7 @@ code { background: var(--bg); padding: 1px 5px; border-radius: 5px; font-size: 9
 
 .badge { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--bg); color: var(--muted); margin-left: 6px; }
 .badge.fragile { background: var(--warn-soft); color: var(--warn); }
+
+/* Historique */
+.btn-sm { padding: 5px 10px; min-height: 30px; font-size: 13px; }
+.nowrap { white-space: nowrap; }

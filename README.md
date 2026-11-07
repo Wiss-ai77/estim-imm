@@ -20,6 +20,8 @@ le script ou au lancement manuel de l'Action. Mise à jour automatique le 1er de
 - 📊 Médiane et fourchette P25–P75 du prix au m² dans un rayon réglable (300 m → commune entière), évolution par année, liste des ventes comparables.
 - 🔋 Ajustement DPE (A → G) d'après l'étude « valeur verte » des Notaires de France (transactions 2024), avec deux jeux de coefficients : Île-de-France (écarts atténués) ou France entière.
 - 🏠🔑 Module projet : estimation du bien à vendre et du bien à acheter, frais d'agence, capital restant dû, frais de notaire, apport → solde et surface finançable.
+- 🕘 Historique des demandes (estimations, projets, trajets) conservé dans le navigateur, rechargeable, exportable en CSV/JSON.
+- 🚗🚇 Temps de trajet vers Paris (OSRM sans clé ; Google Routes et Île-de-France Mobilités avec vos clés, stockées localement).
 - 🔗 Pré-remplissage par URL : `?q=adresse&type=Maison&surface=100&dpe=D&auto=1`.
 
 ## Méthode
@@ -44,11 +46,26 @@ Tests du nettoyage : `node test/test_dvf.js`.
 Générer les données en local (Île-de-France, quelques minutes) : `node scripts/build-data.mjs`
 ou un seul département : `node scripts/build-data.mjs 94`.
 
-## Déployer sur GitHub Pages
+## Déployer sur un VPS avec mot de passe (recommandé pour un usage personnel)
 
-1. Onglet **Actions** → « Mise à jour des données DVF » → *Run workflow* (la première fois ; ensuite c'est mensuel).
-2. **Settings → Pages** → Source : *Deploy from a branch* → `main` / `/ (root)`.
-3. Le site est disponible sur `https://<utilisateur>.github.io/<dépôt>/`.
+Prérequis : un VPS Debian/Ubuntu avec [Caddy](https://caddyserver.com) et un sous-domaine (ex. `estim.mondomaine.fr`) dont l'enregistrement DNS **A** pointe vers l'IP du VPS.
+
+```bash
+git clone https://github.com/<utilisateur>/<dépôt>.git && cd <dépôt>
+sudo bash deploy/install.sh
+```
+
+Le script copie le site dans `/var/www/estim-immo`, crée un bloc Caddy avec HTTPS automatique et
+authentification par mot de passe (`basic_auth`), interdit l'indexation, puis propose de créer une clé SSH
+dédiée pour que l'Action « Déploiement sur le VPS » (`.github/workflows/deploy.yml`) pousse automatiquement
+chaque mise à jour du site et des données (4 secrets à renseigner dans GitHub : `VPS_HOST`, `VPS_USER`,
+`VPS_PATH`, `VPS_SSH_KEY`). Le dépôt peut alors rester **privé**.
+
+Changer le mot de passe : `caddy hash-password`, remplacer l'empreinte dans `/etc/caddy/sites/estim-immo.caddy`, puis `systemctl reload caddy`.
+
+## Déployer sur GitHub Pages (dépôt public, sans mot de passe)
+
+**Settings → Pages** → Source : *Deploy from a branch* → `main` / `/ (root)` ; le site est servi sur `https://<utilisateur>.github.io/<dépôt>/`.
 
 ## Sources et licences
 

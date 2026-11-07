@@ -19,6 +19,7 @@
       <a href="#estimateur">Estimateur</a>
       <a href="#trajets">Trajets</a>
       <a href="#projet">Mon projet</a>
+      <a href="#historique">Historique</a>
       <a href="#methode">Méthode</a>
     </nav>
   </div>
@@ -191,13 +192,13 @@
 
   <!-- ============ PROJET ============ -->
   <section id="projet" class="card">
-    <h2>Mon projet : vendre à Pontault-Combault, acheter vers Charenton</h2>
-    <p class="muted">Deux estimations côte à côte, puis le bilan financier (frais de notaire, agence, apport). Modifiez les champs : tout se recalcule.</p>
+    <h2>Mon projet : vendre ici, acheter là-bas</h2>
+    <p class="muted">Deux estimations côte à côte, puis le bilan financier (frais de notaire, agence, apport). Modifiez les champs : tout se recalcule. Les adresses et montants restent dans votre navigateur.</p>
 
     <div class="grid-2 project">
       <div class="pane">
         <h3>🏠 Je vends</h3>
-        <label class="field"><span>Adresse</span><input id="p-sell-addr" type="text" value="14 rue du Varan du Nil, 77340 Pontault-Combault"></label>
+        <label class="field"><span>Adresse</span><input id="p-sell-addr" type="text" placeholder="numéro, rue, code postal, ville"></label>
         <div class="grid-3">
           <label class="field"><span>Type</span><select id="p-sell-type"><option>Maison</option><option>Appartement</option></select></label>
           <label class="field"><span>Surface</span><input id="p-sell-surf" type="number" value="100"></label>
@@ -210,7 +211,7 @@
 
       <div class="pane">
         <h3>🔑 J'achète</h3>
-        <label class="field"><span>Adresse ou quartier</span><input id="p-buy-addr" type="text" value="Charenton-le-Pont"></label>
+        <label class="field"><span>Adresse ou quartier</span><input id="p-buy-addr" type="text" placeholder="ex. Charenton-le-Pont, ou une adresse précise"></label>
         <div class="grid-3">
           <label class="field"><span>Type</span><select id="p-buy-type"><option selected>Appartement</option><option>Maison</option></select></label>
           <label class="field"><span>Surface</span><input id="p-buy-surf" type="number" value="70"></label>
@@ -227,6 +228,24 @@
       <span id="p-status" class="status inline"></span>
     </div>
     <div id="p-balance" class="balance" hidden></div>
+  </section>
+
+  <!-- ============ HISTORIQUE ============ -->
+  <section id="historique" class="card">
+    <h2>Historique de mes demandes</h2>
+    <p class="muted" id="h-count">—</p>
+    <div class="table-wrap">
+      <table class="table" id="h-table">
+        <thead><tr><th>Date</th><th>Type</th><th>Demande et résultat</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="row gap wrap-row" style="margin-top:14px">
+      <button id="h-export" class="btn btn-secondary" type="button">Exporter en CSV</button>
+      <button id="h-export-json" class="btn btn-secondary" type="button">Exporter en JSON</button>
+      <button id="h-clear" class="btn btn-secondary" type="button">Tout effacer</button>
+    </div>
+    <p class="muted small">L'historique est enregistré uniquement dans ce navigateur (stockage local). Il n'est pas synchronisé entre appareils : exportez-le pour le conserver ou le transférer.</p>
   </section>
 
   <!-- ============ MÉTHODE ============ -->
@@ -255,6 +274,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script src="js/dvf.js"></script>
 <script src="js/trajet.js"></script>
+<script src="js/historique.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

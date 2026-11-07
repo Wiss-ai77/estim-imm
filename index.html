@@ -17,6 +17,7 @@
     <a class="brand" href="#">Estim'<span>Immo</span></a>
     <nav>
       <a href="#estimateur">Estimateur</a>
+      <a href="#trajets">Trajets</a>
       <a href="#projet">Mon projet</a>
       <a href="#methode">Méthode</a>
     </nav>
@@ -141,6 +142,53 @@
     </div>
   </section>
 
+  <!-- ============ TRAJETS ============ -->
+  <section id="trajets" class="card">
+    <h2>Temps de trajet vers Paris</h2>
+    <p class="muted">Compare le trajet domicile → Paris depuis l'adresse à vendre, l'adresse à acheter et la position de l'estimateur, en voiture et en transports en commun, à l'heure de pointe.</p>
+
+    <div class="row gap wrap-row">
+      <label class="field grow">
+        <span>Destination</span>
+        <select id="t-dest"></select>
+      </label>
+      <label class="field grow">
+        <span>ou une adresse précise (bureau…)</span>
+        <input id="t-dest-addr" type="text" placeholder="ex. 12 rue de Rivoli, Paris">
+      </label>
+      <label class="field">
+        <span>Départ (prochain jour ouvré)</span>
+        <input id="t-time" type="time" value="08:00">
+      </label>
+      <button id="btn-trajet" class="btn btn-primary" type="button">Calculer</button>
+    </div>
+
+    <details class="details">
+      <summary>Clés API (facultatif — meilleure précision)</summary>
+      <div class="grid-2" style="margin-top:10px">
+        <label class="field">
+          <span>Clé Île-de-France Mobilités (PRIM) — transports en commun</span>
+          <input id="key-prim" type="password" autocomplete="off" placeholder="jeton PRIM">
+          <small class="muted">Gratuite : <a href="https://prim.iledefrance-mobilites.fr" target="_blank" rel="noopener">prim.iledefrance-mobilites.fr</a> → compte → « Mon jeton d'API ».</small>
+        </label>
+        <label class="field">
+          <span>Clé Google Maps Platform (Routes API) — voiture avec trafic + transports</span>
+          <input id="key-google" type="password" autocomplete="off" placeholder="AIza…">
+          <small class="muted">Nécessite un projet Google Cloud avec l'API Routes activée ; restreindre la clé à ce site (référent HTTP).</small>
+        </label>
+      </div>
+      <p class="muted small">Les clés sont enregistrées uniquement dans ce navigateur (stockage local) et envoyées aux seuls services concernés. Sans clé : voiture via OSRM/OpenStreetMap (sans trafic) et liens directs vers Google Maps et IDFM.</p>
+    </details>
+
+    <div id="t-status" class="status"></div>
+    <div class="table-wrap">
+      <table class="table" id="t-table" hidden>
+        <thead><tr><th>Depuis</th><th>🚗 Voiture</th><th>🚇 Transports</th><th>Itinéraires</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
   <!-- ============ PROJET ============ -->
   <section id="projet" class="card">
     <h2>Mon projet : vendre à Pontault-Combault, acheter vers Charenton</h2>
@@ -189,6 +237,7 @@
       <li><strong>Nettoyage :</strong> ventes classiques uniquement (pas de VEFA, échanges, adjudications), un seul logement par transaction (les ventes en bloc, les mélanges maison + appartement et les locaux commerciaux sont exclus), prix au m² entre 500 et 25 000 €. La surface utilisée est la surface réelle bâtie.</li>
       <li><strong>Statistique :</strong> la médiane (moins sensible aux extrêmes que la moyenne) sur les ventes situées dans le rayon choisi, et la fourchette P25–P75. Moins de 8 ventes : le résultat est signalé comme fragile.</li>
       <li><strong>DPE :</strong> la médiane DVF mélange toutes les classes énergétiques ; on la considère comme représentative d'un bien de classe D (le cas le plus fréquent dans l'ancien) et on applique les écarts mesurés par les Notaires de France sur les transactions 2024 (étude « valeur verte », déc. 2025). En Île-de-France les écarts sont plus faibles qu'en province : environ +4 % pour un A-B et −5 % pour un F-G en petite couronne sur les appartements ; jusqu'à +17 % (A) et −25 % (G) sur les maisons au niveau national.</li>
+      <li><strong>Trajets :</strong> voiture par OSRM (OpenStreetMap, sans trafic) ou Google Routes API avec trafic prévu si vous fournissez une clé ; transports en commun par l'API Île-de-France Mobilités (PRIM, horaires théoriques) ou Google, avec votre clé. Le départ est fixé au prochain jour ouvré à l'heure choisie.</li>
       <li><strong>Ce que ça ne voit pas :</strong> l'état intérieur, l'étage, l'exposition, un jardin exceptionnel, la copropriété, et les ventes des 6 à 12 derniers mois. C'est un ordre de grandeur pour préparer une négociation, pas une expertise. Hors périmètre : Alsace, Moselle, Mayotte (pas de DVF).</li>
     </ul>
     <p class="muted small">Sources : <a href="https://www.data.gouv.fr/datasets/demandes-de-valeurs-foncieres-geolocalisees" target="_blank" rel="noopener">DVF géolocalisées (data.gouv.fr)</a> · <a href="https://adresse.data.gouv.fr/api-doc/adresse" target="_blank" rel="noopener">API Adresse</a> · <a href="https://www.notaires.fr" target="_blank" rel="noopener">Notaires de France, « La valeur verte des logements », transactions 2024</a>. Code source sur GitHub (lien dans le pied de page).</p>
@@ -205,6 +254,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script src="js/dvf.js"></script>
+<script src="js/trajet.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

@@ -253,6 +253,62 @@
       <div class="muted">${st.n} ${type === "Maison" ? "maisons" : "appartements"} vendus (${e.a.periodNote}), ${scope}${st.n < 8 ? ' <span class="badge fragile">fragile</span>' : ""}<br>P25–P75 : ${fmtEur(st.p25)} – ${fmtEur(st.p75)} /m² · ${esc(e.pos.label)}</div>`;
   }
 
+  /* ---------- Trajets ---------- */
+  const T = window.TRAJET;
+  const tDest = $("t-dest");
+  tDest.innerHTML = Object.entries(T.DESTINATIONS).map(([k, d]) => `<option value="${k}">${esc(d.label)}</option>`).join("");
+  $("key-prim").value = T.getKey("prim");
+  $("key-google").value = T.getKey("google");
+  $("key-prim").addEventListener("change", (e) => T.setKey("prim", e.target.value));
+  $("key-google").addEventListener("change", (e) => T.setKey("google", e.target.value));
+  $("btn-trajet").addEventListener("click", runTrajets);
+
+  async function resolveOrigins() {
+    const origins = [];
+    const seen = new Set();
+    const add = async (label, text, pos) => {
+      if (!pos && text) { const r = await geocode(text, 1); pos = r[0]; }
+      if (!pos) return;
+      const key = pos.lat.toFixed(4) + "," + pos.lon.toFixed(4);
+      if (seen.has(key)) return; seen.add(key);
+      origins.push({ label, pos });
+    };
+    await add("🏠 À vendre — " + $("p-sell-addr").value, $("p-sell-addr").value);
+    await add("🔑 À acheter — " + $("p-buy-addr").value, $("p-buy-addr").value);
+    if (state.pos) await add("📍 Estimateur — " + state.pos.label, null, state.pos);
+    return origins;
+  }
+
+  async function runTrajets() {
+    const st = $("t-status"), tbl = $("t-table"), tb = tbl.querySelector("tbody");
+    st.className = "status"; st.textContent = "Calcul des trajets…";
+    $("btn-trajet").disabled = true;
+    try {
+      let dest;
+      const custom = $("t-dest-addr").value.trim();
+      if (custom) { const r = await geocode(custom, 1); if (!r[0]) throw new Error("Destination introuvable : " + custom); dest = { label: r[0].label, lat: r[0].lat, lon: r[0].lon }; }
+      else dest = T.DESTINATIONS[tDest.value];
+      const departure = T.nextWeekday($("t-time").value || "08:00");
+      const origins = await resolveOrigins();
+      if (!origins.length) throw new Error("Aucune adresse de départ : remplissez le projet ou positionnez l'estimateur.");
+      const results = await Promise.all(origins.map(o => T.compute(o.pos, dest, departure)));
+      tb.innerHTML = origins.map((o, i) => {
+        const r = results[i];
+        const car = r.car ? `<b>${T.fmtMin(r.car.duration)}</b>${r.car.staticDuration ? ` <span class="muted">(${T.fmtMin(r.car.staticDuration)} sans trafic)</span>` : ""}<br><small class="muted">${T.fmtKm(r.car.distance)} · ${esc(r.car.source)}</small>` : '<span class="muted">—</span>';
+        const tr = r.transit ? `<b>${T.fmtMin(r.transit.duration)}</b>${isFinite(r.transit.changes) ? ` <span class="muted">· ${r.transit.changes} corresp.</span>` : ""}<br><small class="muted">${esc((r.transit.lines || []).join(" → "))}${r.transit.lines && r.transit.lines.length ? " · " : ""}${esc(r.transit.source)}</small>` : '<span class="muted">Ajoutez une clé PRIM ou Google, ou ouvrez le lien →</span>';
+        const l = r.links;
+        return `<tr><td>${esc(o.label)}</td><td>${car}</td><td>${tr}</td><td><a href="${l.gmapsTransit}" target="_blank" rel="noopener">Google Maps</a> · <a href="${l.idfm}" target="_blank" rel="noopener">IDFM</a> · <a href="${l.gmapsDrive}" target="_blank" rel="noopener">voiture</a></td></tr>`;
+      }).join("");
+      tbl.hidden = false;
+      const notes = [...new Set(results.flatMap(r => r.notes))];
+      st.className = "status" + (notes.length ? " warn" : "");
+      st.textContent = `Vers ${dest.label}, départ ${departure.toLocaleString("fr-FR", { weekday: "long", hour: "2-digit", minute: "2-digit" })}.` + (notes.length ? " " + notes.join(" · ") : "");
+    } catch (err) {
+      console.error(err);
+      st.className = "status err"; st.textContent = err.message;
+    } finally { $("btn-trajet").disabled = false; }
+  }
+
   /* ---------- utilitaires ---------- */
   function setStatus(msg, cls = "") { const s = $("status"); s.className = "status " + cls; s.textContent = msg; }
   function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }

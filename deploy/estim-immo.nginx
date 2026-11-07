@@ -1,0 +1,35 @@
+# Site Estim'Immo — nginx, HTTP (certbot ajoutera le bloc HTTPS)
+server {
+    listen 80;
+    listen [::]:80;
+    server_name __DOMAINE__;
+
+    root __DEST__;
+    index index.html;
+
+    # Authentification par mot de passe
+    auth_basic "Estim'Immo — outil personnel";
+    auth_basic_user_file /etc/nginx/estim-immo.htpasswd;
+
+    # Pas d'indexation par les moteurs de recherche
+    add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+    gzip_min_length 1024;
+
+    location /data/ {
+        add_header Cache-Control "public, max-age=3600";
+        add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+    }
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    access_log /var/log/nginx/estim-immo.access.log;
+    error_log  /var/log/nginx/estim-immo.error.log;
+}

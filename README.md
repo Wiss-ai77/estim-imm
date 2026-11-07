@@ -62,7 +62,9 @@ dédiée pour que l'Action « Déploiement sur le VPS » (`.github/workflows/dep
 chaque mise à jour du site et des données (4 secrets à renseigner dans GitHub : `VPS_HOST`, `VPS_USER`,
 `VPS_PATH`, `VPS_SSH_KEY`). Le dépôt peut alors rester **privé**.
 
-Changer le mot de passe : `caddy hash-password`, remplacer l'empreinte dans `/etc/caddy/sites/estim-immo.caddy`, puis `systemctl reload caddy`.
+Si nginx tourne déjà sur le serveur (autres sites), utilisez `sudo bash deploy/install-nginx.sh` à la place : même principe avec `auth_basic` + certbot.
+
+Changer le mot de passe (Caddy) : `caddy hash-password`, remplacer l'empreinte dans `/etc/caddy/sites/estim-immo.caddy`, puis `systemctl reload caddy`.
 
 ## Déployer sur GitHub Pages (dépôt public, sans mot de passe)
 

@@ -73,6 +73,8 @@ echo "Site copié dans $DEST ($(du -sh "$DEST" | cut -f1))."
 
 etape "3/4  Configuration Caddy"
 mkdir -p /etc/caddy/sites /var/log/caddy
+chown -R caddy:caddy /var/log/caddy 2>/dev/null || true
+chmod 755 /var/log/caddy
 sed -e "s|__DOMAINE__|$DOMAINE|" -e "s|__DEST__|$DEST|" -e "s|__UTILISATEUR__|$UTILISATEUR|" -e "s|__HASH__|$HASH|" -e "s|__TLS__|$TLS_LINE|" \
   "$SOURCE/deploy/estim-immo.caddy" > "$SITE_CONF"
 # Pare-feu : ouvrir 80/443 si ufw est actif
@@ -86,7 +88,6 @@ systemctl enable caddy >/dev/null 2>&1 || true
 if systemctl is-active --quiet caddy; then systemctl reload caddy; else systemctl restart caddy; fi
 sleep 2
 systemctl is-active --quiet caddy || { echo "Caddy ne démarre pas. Détails :"; journalctl -u caddy -n 20 --no-pager; exit 1; }
-chown -R caddy:caddy /var/log/caddy 2>/dev/null || true
 echo "Caddy rechargé : https://$DOMAINE (identifiant $UTILISATEUR)."
 
 etape "4/4  Déploiement automatique depuis GitHub (facultatif)"

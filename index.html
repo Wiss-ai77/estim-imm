@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estim'Immo — prix au m² réel autour de vous (DVF + DPE)</title>
+<meta name="description" content="Estimez le prix au m² d'un bien à partir des ventes réelles (base DVF de l'État) autour d'une position, avec ajustement selon le DPE. Scénario vente Pontault-Combault / achat Charenton-le-Pont.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="#">Estim'<span>Immo</span></a>
+    <nav>
+      <a href="#estimateur">Estimateur</a>
+      <a href="#projet">Mon projet</a>
+      <a href="#methode">Méthode</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero">
+    <h1>Le prix au m² <em>réellement payé</em> autour d'une adresse</h1>
+    <p class="lead">Pas d'annonces ni de promesses d'agence : les ventes notariées des dernières années (base DVF de l'État), filtrées autour de votre position, puis ajustées selon le DPE du bien.</p>
+  </section>
+
+  <!-- ============ ESTIMATEUR ============ -->
+  <section id="estimateur" class="card">
+    <h2>1. Où se trouve le bien ?</h2>
+
+    <div class="row gap">
+      <button id="btn-geoloc" class="btn btn-secondary" type="button">📍 Me localiser</button>
+      <span class="or">ou</span>
+      <div class="field grow addr-field">
+        <input id="addr" type="search" placeholder="Tapez une adresse : 14 rue …, 77340 Pontault-Combault" autocomplete="off">
+        <ul id="addr-suggest" class="suggest" hidden></ul>
+      </div>
+    </div>
+
+    <div id="map" class="map" aria-label="Carte des ventes"></div>
+
+    <h2>2. Le bien à estimer</h2>
+    <div class="grid-4">
+      <label class="field">
+        <span>Type</span>
+        <select id="type">
+          <option value="Appartement">Appartement</option>
+          <option value="Maison">Maison</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Surface habitable (m²)</span>
+        <input id="surface" type="number" min="9" max="1000" step="1" placeholder="ex. 95">
+      </label>
+      <label class="field">
+        <span>Classe DPE</span>
+        <select id="dpe">
+          <option value="A">A</option>
+          <option value="B">B</option>
+          <option value="C">C</option>
+          <option value="D" selected>D</option>
+          <option value="E">E</option>
+          <option value="F">F</option>
+          <option value="G">G</option>
+          <option value="?">Je ne sais pas</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Rayon de recherche</span>
+        <select id="radius">
+          <option value="300">300 m</option>
+          <option value="500" selected>500 m</option>
+          <option value="1000">1 km</option>
+          <option value="2000">2 km</option>
+          <option value="99999">Toute la commune</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="row gap wrap-row">
+      <label class="field">
+        <span>Période</span>
+        <select id="period">
+          <option value="24" selected>24 derniers mois</option>
+          <option value="36">36 derniers mois</option>
+          <option value="0">Toutes les années disponibles</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Référence DPE</span>
+        <select id="region">
+          <option value="idf" selected>Île-de-France (écarts modérés)</option>
+          <option value="fr">France entière (écarts plus marqués)</option>
+        </select>
+      </label>
+      <button id="btn-estimate" class="btn btn-primary" type="button" disabled>Estimer</button>
+    </div>
+
+    <div id="status" class="status" role="status"></div>
+
+    <!-- Résultats -->
+    <div id="results" hidden>
+      <div class="kpis">
+        <div class="kpi">
+          <div class="kpi-label">Prix médian au m²<br><small id="kpi-type-label">appartements</small></div>
+          <div class="kpi-value" id="kpi-median">—</div>
+          <div class="kpi-sub" id="kpi-range">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Ventes retenues</div>
+          <div class="kpi-value" id="kpi-count">—</div>
+          <div class="kpi-sub" id="kpi-scope">—</div>
+        </div>
+        <div class="kpi kpi-accent">
+          <div class="kpi-label">Estimation du bien<br><small id="kpi-dpe-label">DPE D</small></div>
+          <div class="kpi-value" id="kpi-estimate">—</div>
+          <div class="kpi-sub" id="kpi-estimate-range">—</div>
+        </div>
+      </div>
+
+      <details class="details" open>
+        <summary>Ajustement DPE appliqué</summary>
+        <div id="dpe-explain" class="explain"></div>
+      </details>
+
+      <details class="details">
+        <summary>Évolution par année</summary>
+        <table class="table" id="years-table"><thead><tr><th>Année</th><th>Ventes</th><th>Médiane €/m²</th><th>P25 – P75</th></tr></thead><tbody></tbody></table>
+      </details>
+
+      <details class="details">
+        <summary>Ventes comparables (les plus proches)</summary>
+        <table class="table" id="sales-table"><thead><tr><th>Date</th><th>Adresse</th><th>Type</th><th>Surface</th><th>Prix</th><th>€/m²</th><th>Dist.</th></tr></thead><tbody></tbody></table>
+      </details>
+    </div>
+  </section>
+
+  <!-- ============ PROJET ============ -->
+  <section id="projet" class="card">
+    <h2>Mon projet : vendre à Pontault-Combault, acheter vers Charenton</h2>
+    <p class="muted">Deux estimations côte à côte, puis le bilan financier (frais de notaire, agence, apport). Modifiez les champs : tout se recalcule.</p>
+
+    <div class="grid-2 project">
+      <div class="pane">
+        <h3>🏠 Je vends</h3>
+        <label class="field"><span>Adresse</span><input id="p-sell-addr" type="text" value="14 rue du Varan du Nil, 77340 Pontault-Combault"></label>
+        <div class="grid-3">
+          <label class="field"><span>Type</span><select id="p-sell-type"><option>Maison</option><option>Appartement</option></select></label>
+          <label class="field"><span>Surface</span><input id="p-sell-surf" type="number" value="100"></label>
+          <label class="field"><span>DPE</span><select id="p-sell-dpe"><option>A</option><option>B</option><option>C</option><option selected>D</option><option>E</option><option>F</option><option>G</option></select></label>
+        </div>
+        <label class="field"><span>Frais d'agence à ma charge (%)</span><input id="p-sell-agency" type="number" value="4" step="0.5" min="0"></label>
+        <label class="field"><span>Capital restant dû sur le prêt actuel (€)</span><input id="p-sell-crd" type="number" value="0" step="1000" min="0"></label>
+        <div class="pane-result" id="p-sell-result">—</div>
+      </div>
+
+      <div class="pane">
+        <h3>🔑 J'achète</h3>
+        <label class="field"><span>Adresse ou quartier</span><input id="p-buy-addr" type="text" value="Charenton-le-Pont"></label>
+        <div class="grid-3">
+          <label class="field"><span>Type</span><select id="p-buy-type"><option selected>Appartement</option><option>Maison</option></select></label>
+          <label class="field"><span>Surface</span><input id="p-buy-surf" type="number" value="70"></label>
+          <label class="field"><span>DPE</span><select id="p-buy-dpe"><option>A</option><option>B</option><option>C</option><option selected>D</option><option>E</option><option>F</option><option>G</option></select></label>
+        </div>
+        <label class="field"><span>Frais de notaire (%, ancien ≈ 7,5–8)</span><input id="p-buy-notary" type="number" value="7.8" step="0.1" min="0"></label>
+        <label class="field"><span>Épargne / apport complémentaire (€)</span><input id="p-buy-cash" type="number" value="0" step="1000" min="0"></label>
+        <div class="pane-result" id="p-buy-result">—</div>
+      </div>
+    </div>
+
+    <div class="row gap">
+      <button id="btn-project" class="btn btn-primary" type="button">Calculer le bilan</button>
+      <span id="p-status" class="status inline"></span>
+    </div>
+    <div id="p-balance" class="balance" hidden></div>
+  </section>
+
+  <!-- ============ MÉTHODE ============ -->
+  <section id="methode" class="card">
+    <h2>Méthode et limites</h2>
+    <ul class="method">
+      <li><strong>Source des prix :</strong> « Demandes de valeurs foncières géolocalisées » (DGFiP / Etalab), c'est-à-dire toutes les ventes enregistrées chez les notaires, publiées deux fois par an avec environ 6 mois de retard. Le site télécharge directement les fichiers de la commune concernée depuis <code>files.data.gouv.fr</code> ; rien ne transite par un serveur tiers.</li>
+      <li><strong>Nettoyage :</strong> ventes classiques uniquement (pas de VEFA, échanges, adjudications), un seul logement par transaction (les ventes en bloc, les mélanges maison + appartement et les locaux commerciaux sont exclus), prix au m² entre 500 et 25 000 €. La surface utilisée est la surface réelle bâtie.</li>
+      <li><strong>Statistique :</strong> la médiane (moins sensible aux extrêmes que la moyenne) sur les ventes situées dans le rayon choisi, et la fourchette P25–P75. Moins de 8 ventes : le résultat est signalé comme fragile.</li>
+      <li><strong>DPE :</strong> la médiane DVF mélange toutes les classes énergétiques ; on la considère comme représentative d'un bien de classe D (le cas le plus fréquent dans l'ancien) et on applique les écarts mesurés par les Notaires de France sur les transactions 2024 (étude « valeur verte », déc. 2025). En Île-de-France les écarts sont plus faibles qu'en province : environ +4 % pour un A-B et −5 % pour un F-G en petite couronne sur les appartements ; jusqu'à +17 % (A) et −25 % (G) sur les maisons au niveau national.</li>
+      <li><strong>Ce que ça ne voit pas :</strong> l'état intérieur, l'étage, l'exposition, un jardin exceptionnel, la copropriété, et les ventes des 6 à 12 derniers mois. C'est un ordre de grandeur pour préparer une négociation, pas une expertise. Hors périmètre : Alsace, Moselle, Mayotte (pas de DVF).</li>
+    </ul>
+    <p class="muted small">Sources : <a href="https://www.data.gouv.fr/datasets/demandes-de-valeurs-foncieres-geolocalisees" target="_blank" rel="noopener">DVF géolocalisées (data.gouv.fr)</a> · <a href="https://adresse.data.gouv.fr/api-doc/adresse" target="_blank" rel="noopener">API Adresse</a> · <a href="https://www.notaires.fr" target="_blank" rel="noopener">Notaires de France, « La valeur verte des logements », transactions 2024</a>. Code source sur GitHub (lien dans le pied de page).</p>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <span>Estim'Immo — outil personnel, données publiques sous Licence Ouverte 2.0.</span>
+    <a id="gh-link" href="https://github.com/Wiss-ai77" target="_blank" rel="noopener">Code source</a>
+  </div>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="js/dvf.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
